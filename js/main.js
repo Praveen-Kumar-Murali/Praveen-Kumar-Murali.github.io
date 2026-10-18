@@ -170,10 +170,10 @@ for (let k = -3; k <= 3; k++) { const l = box(3, 0.08, 0.3, new THREE.MeshBasicM
 
 // ---------------------------------------------------------------- stations
 const stations = []; // { id, center, label, view, hit, update(t, dt), status(t) }
-function addStation(id, center, { labelY = 2.3, viewOffset, lookY = 0.6 } = {}) {
+function addStation(id, center, { labelY = 2.3, viewOffset, lookY = 0.6, shift = 0.24 } = {}) {
   const idx = PROJECTS.findIndex((p) => p.id === id);
   const group = new THREE.Group(); group.position.copy(center); world.add(group);
-  const s = { id, idx, group, center: center.clone(), anchor: center.clone().add(new THREE.Vector3(0, labelY, 0)), viewOffset, lookY, update: () => {}, status: () => "" };
+  const s = { id, idx, group, center: center.clone(), anchor: center.clone().add(new THREE.Vector3(0, labelY, 0)), viewOffset, lookY, shift, update: () => {}, status: () => "" };
   stations.push(s);
   return s;
 }
@@ -606,104 +606,132 @@ const hits = [];
   addHit(s, 6.2, 3.0, 4.4);
 }
 
-// ============ 6. Portion monitor: load cell, deposits, live trace ============
+// ============ Terrain: camera predicts hazards, IMU confirms ============
 {
-  const s = addStation("ptm", new THREE.Vector3(0, 0, 5.2), { viewOffset: new THREE.Vector3(0.6, 2.4, 4.6), lookY: 1.1, labelY: 2.9 });
+  const s = addStation("terrain", new THREE.Vector3(0, 0, 5.0), { viewOffset: new THREE.Vector3(0.2, 4.4, 7.0), lookY: 0.3, labelY: 2.2, shift: 0.14 });
   const G = s.group;
-  tapeRect(G, 0, 0, 5.4, 3.6);
-  const tableTop = 0.8;
-  const table = box(1.8, 0.06, 1.0, std(0x3a3f47, { r: 0.7 })); table.position.set(-0.5, tableTop - 0.03, 0.2); G.add(table);
-  for (const x of [-1.3, 0.3]) for (const z of [-0.2, 0.6]) { const l = box(0.05, tableTop, 0.05, MAT.steel); l.position.set(x, tableTop / 2, z); G.add(l); }
-  const scale = box(0.42, 0.06, 0.42, MAT.dark); scale.position.set(-0.5, tableTop + 0.03, 0.25); G.add(scale);
-  const trayY = tableTop + 0.08;
-  const tray = box(0.36, 0.02, 0.28, MAT.white); tray.position.set(-0.5, trayY, 0.25); G.add(tray);
-  const rim = [[0, 0.14, 0.36, 0.01], [0, -0.14, 0.36, 0.01], [0.18, 0, 0.01, 0.28], [-0.18, 0, 0.01, 0.28]];
-  for (const [x, z, w, d] of rim) { const r = box(w, 0.05, d, MAT.white); r.position.set(-0.5 + x, trayY + 0.03, 0.25 + z); G.add(r); }
-  // tool (ladle) on a post
-  const post = box(0.06, 0.75, 0.06, MAT.steel); post.position.set(-0.5, tableTop + 0.37, -0.2); G.add(post);
-  const boom = new THREE.Group(); boom.position.set(-0.5, tableTop + 0.72, -0.2); G.add(boom);
-  const beam = box(0.04, 0.04, 0.45, MAT.steel); beam.position.z = 0.22; boom.add(beam);
-  const ladle = new THREE.Group(); ladle.position.z = 0.45; boom.add(ladle);
-  const bowl = cyl(0.07, 0.04, 0.06, MAT.orange); ladle.add(bowl);
-  // particles (grains of food)
-  const NP = 90;
-  const grains = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 6, 5), std(0xf3e6b8, { r: 0.8 }), NP); grains.castShadow = true; G.add(grains);
-  const P = Array.from({ length: NP }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), state: 0, rel: 0 }));
-  const dummy = new THREE.Object3D();
-  // screen with live trace
-  const scr = screenTexture(640, 360);
-  const screen = mesh(new THREE.PlaneGeometry(1.5, 0.84), new THREE.MeshBasicMaterial({ map: scr.tex }), { cast: false });
-  screen.position.set(1.0, 1.45, -0.1); screen.rotation.y = -0.18; G.add(screen);
-  const bz = box(1.58, 0.92, 0.05, MAT.dark); bz.position.set(1.01, 1.45, -0.13); bz.rotation.y = -0.18; G.add(bz);
-  const sp = box(0.06, 1.0, 0.06, MAT.dark); sp.position.set(1.08, 0.5, -0.14); G.add(sp);
-  const scenarios = ["ok", "under", "stuck", "missed"];
-  const T = 7.5;
-  let cycle = -1, trace = [], verdict = "", phase = 0, spring = 0, springV = 0, acc = 0;
-  const R = rng(99);
-  function resetCycle(sc) {
-    const n = sc === "under" ? 0.62 : 1.0;
-    P.forEach((g, i) => {
-      g.state = 0; g.p.set(0, -10, 0);
-      const frac = i / NP;
-      if (frac >= n) { g.rel = -1; return; }
-      g.rel = 0.6 + frac * 0.6;               // release over 0.6 s
-      if (sc === "stuck" && frac > 0.6) g.rel = 2.4 + (frac - 0.6) * 0.5; // late drop
-    });
-    trace = []; verdict = "";
+  tapeRect(G, 0, 0, 7.8, 3.3);
+  const X0 = -3.4, X1 = 3.4, Wd = 1.5;
+  const surf = [
+    { name: "red rubber path", x0: -3.4, x1: -1.6, cam: 3.6, imu: 0.51, col: "#8c3a33" },
+    { name: "wood chips", x0: -1.6, x1: -0.1, cam: 7.5, imu: 0.41, col: "#7a5a3a" },
+    { name: "grass", x0: -0.1, x1: 1.5, cam: 6.8, imu: 0.29, col: "#3f6a31" },
+    { name: "asphalt", x0: 1.5, x1: 3.4, cam: 3.9, imu: 2.2, col: "#3b3e44" },
+  ];
+  // ground strip texture
+  const gt = screenTexture(2048, 452), R = rng(5), gx = (x) => ((x - X0) / (X1 - X0)) * 2048;
+  for (const sf of surf) {
+    const a = gx(sf.x0), b = gx(sf.x1); gt.ctx.fillStyle = sf.col; gt.ctx.fillRect(a, 0, b - a, 452);
+    const n = sf.name === "wood chips" ? 2600 : sf.name === "grass" ? 3200 : 900;
+    for (let i = 0; i < n; i++) {
+      const x = a + R() * (b - a), y = R() * 452;
+      if (sf.name === "wood chips") { gt.ctx.fillStyle = R() > 0.5 ? "#a07a4e" : "#5a3f27"; gt.ctx.fillRect(x, y, 6 + R() * 10, 2 + R() * 3); }
+      else if (sf.name === "grass") { gt.ctx.strokeStyle = R() > 0.5 ? "#5e8f45" : "#2f5426"; gt.ctx.beginPath(); gt.ctx.moveTo(x, y); gt.ctx.lineTo(x + (R() - 0.5) * 6, y - 6 - R() * 8); gt.ctx.stroke(); }
+      else { gt.ctx.fillStyle = R() > 0.5 ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.18)"; gt.ctx.fillRect(x, y, 3, 3); }
+    }
   }
-  function drawTrace(sc, u, w) {
-    const c = scr.ctx, W = 640, H = 360;
+  gt.ctx.strokeStyle = "rgba(20,20,20,0.6)"; gt.ctx.lineWidth = 3; // a few cracks in the asphalt
+  for (let k = 0; k < 3; k++) { let x = gx(1.8 + k * 0.5), y = 60 + k * 120; gt.ctx.beginPath(); gt.ctx.moveTo(x, y); for (let i = 0; i < 8; i++) { x += 12 + R() * 14; y += (R() - 0.5) * 30; gt.ctx.lineTo(x, y); } gt.ctx.stroke(); }
+  gt.tex.needsUpdate = true;
+  const strip = mesh(new THREE.PlaneGeometry(X1 - X0, Wd), new THREE.MeshStandardMaterial({ map: gt.tex, roughness: 0.95 }), { cast: false });
+  strip.rotation.x = -Math.PI / 2; strip.position.y = 0.006; G.add(strip);
+
+  // hazards along the route
+  const outline = (w, h, d) => new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), new THREE.LineBasicMaterial({ color: 0xff8a2a }));
+  function label(text) {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 64; const x = c.getContext("2d");
+    x.fillStyle = "rgba(13,16,20,0.85)"; x.fillRect(0, 0, 256, 64); x.font = "700 30px Inter, sans-serif"; x.fillStyle = "#ffb15c"; x.fillText(text, 14, 43);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); sp.scale.set(0.62, 0.155, 1); return sp;
+  }
+  const hz = [
+    { x: -2.3, w: 0.22, h: 0.05, d: 0.16, z: 0.18, mat: std(0x22345c), text: "bump 47 mm" },
+    { x: 0.6, w: 0.12, h: 0.025, d: 1.0, z: 0, mat: std(0xb8875a), text: "bump 19 mm" },
+    { x: 2.45, w: 0.3, h: 0.04, d: 0.22, z: -0.2, mat: std(0x1a1d22), text: "hole 40 mm", hole: true },
+  ].map((h) => {
+    const m = h.hole ? mesh(new THREE.CircleGeometry(0.16, 24), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }), { cast: false }) : box(h.w, h.h, h.d, h.mat);
+    if (h.hole) { m.rotation.x = -Math.PI / 2; m.scale.set(1, 0.75, 1); m.position.set(h.x, 0.009, h.z); } else m.position.set(h.x, h.h / 2, h.z);
+    G.add(m);
+    const o = outline(h.w + 0.06, Math.max(h.h, 0.02) + 0.05, h.d + 0.06); o.position.set(h.x, 0.04, h.z); o.visible = false; G.add(o);
+    const l = label(h.text); l.position.set(h.x, 0.42, h.z); l.visible = false; G.add(l);
+    return { ...h, o, l, seen: false, front: false, rear: false };
+  });
+
+  // skid-steer robot with an arm holding the depth camera
+  const robot = new THREE.Group(); G.add(robot);
+  const body = new THREE.Group(); body.position.y = 0.2; robot.add(body);
+  body.add(at(box(0.93, 0.2, 0.6, MAT.body), 0, 0.1, 0));
+  body.add(at(box(0.95, 0.03, 0.62, MAT.orange), 0, 0.215, 0));
+  body.add(at(cyl(0.06, 0.07, 0.08, MAT.dark), -0.2, 0.27, 0));
+  const armBase = at(cyl(0.06, 0.07, 0.06, MAT.dark), 0.3, 0.26, 0); body.add(armBase);
+  const up = at(box(0.05, 0.36, 0.05, MAT.white), 0.3, 0.46, 0); body.add(up);
+  const fore = at(box(0.34, 0.045, 0.045, MAT.white), 0.45, 0.62, 0); fore.rotation.z = -0.35; body.add(fore);
+  const cam = at(box(0.05, 0.03, 0.11, MAT.dark), 0.62, 0.55, 0); cam.rotation.z = -0.7; body.add(cam);
+  const wheels = [];
+  for (const wx of [-0.3, 0.3]) for (const wz of [-0.35, 0.35]) {
+    const w = cyl(0.165, 0.165, 0.11, MAT.rubber, 20); w.rotation.x = Math.PI / 2; w.position.set(wx, 0.165, wz); robot.add(w); wheels.push(w);
+  }
+  // camera footprint on the ground, 0.75 to 1.65 m ahead of the robot centre
+  const band = new THREE.Shape([new THREE.Vector2(0.75, -0.42), new THREE.Vector2(1.65, -0.62), new THREE.Vector2(1.65, 0.62), new THREE.Vector2(0.75, 0.42)]);
+  const fp = mesh(new THREE.ShapeGeometry(band), new THREE.MeshBasicMaterial({ color: 0x3aa0ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }), { cast: false });
+  fp.rotation.x = Math.PI / 2; fp.position.y = 0.02; robot.add(fp);
+
+  // live chart: camera unevenness and IMU shaking
+  const scr = screenTexture(768, 300);
+  const screen = mesh(new THREE.PlaneGeometry(2.3, 0.9), new THREE.MeshBasicMaterial({ map: scr.tex }), { cast: false });
+  screen.position.set(-0.4, 1.35, -1.25); G.add(screen);
+  const sb = box(2.38, 0.98, 0.05, MAT.dark); sb.position.set(-0.4, 1.35, -1.29); G.add(sb);
+  for (const x of [-1.4, 0.6]) { const p = box(0.05, 0.9, 0.05, MAT.dark); p.position.set(x, 0.45, -1.29); G.add(p); }
+  const hist = [];
+  function drawChart(sf, jolt) {
+    const c = scr.ctx, W = 768, H = 300;
     c.fillStyle = "#18202a"; c.fillRect(0, 0, W, H);
-    c.fillStyle = "#d6dde6"; c.font = "700 24px Inter, sans-serif"; c.fillText("Load cell: weight / target", 18, 34);
-    c.fillStyle = "#9aa5b3"; c.font = "500 18px Inter, sans-serif"; c.fillText("scenario: " + sc, W - 190, 34);
-    const x0 = 50, x1 = W - 20, y0 = H - 40, y1 = 60, ymax = 1.3, tmax = 5;
-    const X = (t) => x0 + (t / tmax) * (x1 - x0), Y = (v) => y0 - (v / ymax) * (y0 - y1);
-    c.fillStyle = "rgba(61,220,132,0.15)"; c.fillRect(x0, Y(1.05), x1 - x0, Y(0.95) - Y(1.05));
-    c.strokeStyle = "#4a5563"; c.lineWidth = 2; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y0); c.moveTo(x0, y0); c.lineTo(x0, y1); c.stroke();
-    c.fillStyle = "#9aa5b3"; c.font = "16px JetBrains Mono, monospace"; c.fillText("1.0", 12, Y(1) + 5); c.fillText("time (s)", x1 - 70, y0 + 28);
-    c.strokeStyle = "#ff8a2a"; c.lineWidth = 5; c.beginPath();
-    trace.forEach(([t, v], i) => (i ? c.lineTo(X(t), Y(v)) : c.moveTo(X(t), Y(v)))); c.stroke();
-    for (const d of [1.9, 3.2]) { c.strokeStyle = "#3a4250"; c.setLineDash([6, 6]); c.beginPath(); c.moveTo(X(d), y0); c.lineTo(X(d), y1); c.stroke(); c.setLineDash([]); }
-    if (verdict) { c.font = "700 28px Inter, sans-serif"; c.fillStyle = verdict.includes("OK") ? "#3ddc84" : "#ff8a2a"; c.fillText(verdict, x0 + 10, y1 + 6); }
+    c.font = "700 22px Inter, sans-serif"; c.fillStyle = "#d6dde6"; c.fillText("Surface: " + sf.name, 16, 30);
+    c.font = "500 17px Inter, sans-serif"; c.fillStyle = "#9aa5b3"; c.fillText("typical values from our outdoor runs", W - 330, 30);
+    const rows = [["camera unevenness (mm)", 0, 10, "#ff8a2a", 0], ["IMU fast/slow shaking", 0, 2.6, "#3aa0ff", 1], ["IMU vertical jolt", 0, 1, "#3ddc84", 2]];
+    rows.forEach(([name, lo, hi, col, k], i) => {
+      const y0 = 70 + i * 76, y1 = y0 + 58;
+      c.fillStyle = "#9aa5b3"; c.font = "500 15px JetBrains Mono, monospace"; c.fillText(name, 16, y0 - 6);
+      c.strokeStyle = "#2f3945"; c.lineWidth = 1; c.strokeRect(16, y0, W - 32, 58);
+      c.strokeStyle = col; c.lineWidth = 3; c.beginPath();
+      hist.forEach((v, j) => { const x = 16 + (j / 300) * (W - 32), y = y1 - ((v[k] - lo) / (hi - lo)) * 58; j ? c.lineTo(x, Math.max(y0, y)) : c.moveTo(x, Math.max(y0, y)); });
+      c.stroke();
+    });
     scr.tex.needsUpdate = true;
   }
+  const speed = 0.45, T = (X1 - X0 + 0.6) / speed + 1.2;
+  let pitch = 0, pitchV = 0, joltT = -9, cycle = -1, acc = 0, msg = "";
   s.update = (t, dt, near) => {
-    const n = Math.floor(t / T), u = t - n * T, sc = scenarios[n % scenarios.length];
-    if (n !== cycle) { cycle = n; resetCycle(sc); }
-    boom.rotation.y = sc === "missed" ? 0.8 : 0;
-    const tilt = smooth(prog(u, 0.4, 0.7)) - smooth(prog(u, 1.4, 1.7));
-    ladle.rotation.x = tilt * 1.9 + (sc === "stuck" && u > 2.3 && u < 2.8 ? Math.sin(u * 40) * 0.25 : 0);
-    ladle.updateWorldMatrix(true, false);
-    const lp = new THREE.Vector3().setFromMatrixPosition(ladle.matrixWorld); G.worldToLocal(lp);
-    let inTray = 0;
-    for (const g of P) {
-      if (g.state === 0 && g.rel >= 0 && u >= g.rel) { g.state = 1; g.p.set(lp.x + (R() - 0.5) * 0.06, lp.y - 0.03, lp.z + (R() - 0.5) * 0.06); g.v.set((R() - 0.5) * 0.3, -0.2, (R() - 0.5) * 0.3 + 0.05); }
-      if (g.state === 1) {
-        g.v.y -= 9.8 * dt; g.p.addScaledVector(g.v, dt);
-        const inX = Math.abs(g.p.x + 0.5) < 0.17 && Math.abs(g.p.z - 0.25) < 0.13;
-        if (inX && g.p.y <= trayY + 0.02) { g.state = 2; g.p.y = trayY + 0.02 + R() * 0.02; springV += 0.4; }
-        else if (!inX && Math.abs(g.p.x + 0.5) < 0.9 && Math.abs(g.p.z - 0.2) < 0.5 && g.p.y <= tableTop + 0.012) { g.state = 3; g.p.y = tableTop + 0.012; }
-        else if (g.p.y < 0.012) { g.state = 3; g.p.y = 0.012; }
-      }
-      if (g.state === 2) inTray++;
+    const n = Math.floor(t / T), u = t - n * T;
+    if (n !== cycle) { cycle = n; hz.forEach((h) => { h.seen = h.front = h.rear = false; h.o.visible = h.l.visible = false; h.o.material.color.set(0xff8a2a); }); hist.length = 0; }
+    const x = Math.min(X0 - 0.3 + u * speed, X1 + 0.3);
+    robot.position.set(x, 0, 0);
+    const moving = x < X1 + 0.3;
+    wheels.forEach((w) => { if (moving) w.rotation.y += (speed * dt) / 0.165; });
+    msg = "";
+    for (const h of hz) {
+      const ahead = h.x - x;
+      if (!h.seen && ahead > 0.75 && ahead < 1.65) { h.seen = true; h.o.visible = h.l.visible = true; }
+      if (h.seen && !h.front && ahead > 0) msg = "Camera sees a " + h.text + " ahead";
+      if (!h.front && x + 0.3 >= h.x) { h.front = true; pitchV += h.hole ? -0.9 : 1.1; joltT = t; h.o.material.color.set(0x3ddc84); msg = "IMU confirms: front wheels hit it"; }
+      if (!h.rear && x - 0.3 >= h.x) { h.rear = true; pitchV += h.hole ? 0.7 : -0.9; joltT = t; msg = "Second jolt from the rear wheels"; }
+      if (h.front && t - joltT < 0.9 && !msg) msg = h.rear ? "Second jolt from the rear wheels" : "IMU confirms: front wheels hit it";
     }
-    P.forEach((g, i) => { if (g.state === 0) dummy.position.set(0, -10, 0); else dummy.position.copy(g.p); dummy.updateMatrix(); grains.setMatrixAt(i, dummy.matrix); });
-    grains.instanceMatrix.needsUpdate = true;
-    const k = 60, c = 9; springV += (-k * spring - c * springV) * dt; spring += springV * dt;
-    const wv = inTray / NP + spring * 0.08;
-    if (u < 5) trace.push([u, Math.max(0, wv)]);
-    if (u > 1.9 && !verdict) verdict = inTray / NP < 0.95 ? (sc === "missed" ? "1.9 s: MISSED, redo the portion" : "1.9 s: looks UNDER") : "1.9 s: OK";
-    if (sc === "stuck" && u > 3.2 && verdict.startsWith("1.9 s: looks")) verdict = "3.2 s: it was STUCK, the rest just fell in";
-    if (sc === "under" && u > 3.2 && verdict.startsWith("1.9 s: looks")) verdict = "3.2 s: UNDER, top up";
+    pitchV += (-90 * pitch - 9 * pitchV) * dt; pitch += pitchV * dt;
+    body.rotation.z = pitch * 0.12;
+    const sf = x < X0 ? surf[0] : surf.find((q) => x >= q.x0 && x < q.x1) || surf[surf.length - 1];
+    const jitter = (R() - 0.5);
+    const jolt = Math.max(0, 1 - (t - joltT) * 3) * (0.7 + 0.3 * R());
+    hist.push([sf.cam + jitter * 0.8, sf.imu * (1 + jitter * 0.35), jolt]); if (hist.length > 300) hist.shift();
     acc += dt;
-    if (near && acc > 1 / 24) { acc = 0; drawTrace(sc, u, wv); }
-    phase = u < 1.7 ? 0 : u < 3.2 ? 1 : 2;
+    if (near && acc > 1 / 20) { acc = 0; drawChart(sf, jolt); }
+    if (!msg) msg = "Surface: " + sf.name + " · IMU fast/slow about " + sf.imu;
   };
-  s.status = () => PROJECTS[s.idx].status[phase];
-  addHit(s, 5.4, 2.4, 3.6);
+  s.status = () => msg;
+  addHit(s, 7.8, 1.6, 3.3);
 }
 
-// ============ 7. AGV on the perimeter lane ============
+// ============ 6. AGV on the perimeter lane ============
 {
   const s = addStation("agv", new THREE.Vector3(0, 0, 0), { viewOffset: new THREE.Vector3(4.5, 3.4, 5.5), lookY: 0.3, labelY: 1.2 });
   const G = s.group;
@@ -773,7 +801,7 @@ function viewFor(s) {
   const dir = new THREE.Vector3().subVectors(target, pos).normalize();
   const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
   if (isSmall()) { target.y -= 0.9; pos.y -= 0.2; pos.addScaledVector(dir, -1.5); }
-  else { const shift = s.viewOffset.length() * 0.24; target.addScaledVector(right, shift); pos.addScaledVector(right, shift); }
+  else { const shift = s.viewOffset.length() * s.shift; target.addScaledVector(right, shift); pos.addScaledVector(right, shift); }
   return { pos, target };
 }
 let fly = null, follow = null;

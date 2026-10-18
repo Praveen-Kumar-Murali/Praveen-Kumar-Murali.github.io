@@ -4,6 +4,34 @@ export const GH = "https://github.com/Praveen-Kumar-Murali";
 
 export const PROJECTS = [
   {
+    id: "terrain",
+    label: "Terrain mapping (now)",
+    title: "Terrain quality and hazard mapping",
+    when: "In progress · ELTE Intelligent Field Robots Lab · since Sep 2026 · team of three, my part: robot, sensors, depth hazards, localization",
+    summary:
+      "A field robot (a 70 kg skid-steer with an arm) drives a route and checks the ground. The depth camera on the gripper predicts holes and bumps about a metre ahead, and the IMU confirms what the wheels actually felt. Everything goes on a map.",
+    did: [
+      "Depth hazard node on the robot: RANSAC fits the ground plane, every point gets a signed height, and holes and bumps are measured in millimetres. On 5 tape-measured objects over 24 passes, the mean height error is 1.7 mm (worst 4.3 mm).",
+      "Camera predicts, IMU confirms: the camera sees a hazard about 4 s before the robot reaches it, and the IMU shows the front and then the rear wheel jolt at the predicted times.",
+      "Raised the IMU from 10 to 100 Hz. Plain RMS shaking just followed the speed, but the ratio of fast to slow shaking separates surfaces: about 2 on asphalt, about 0.3 on grass.",
+      "Localization: GNSS was 7 to 10 m off. Wheel speed plus IMU heading in an EKF (robot_localization) closed a 26 m loop to 0.7 m, against 4.7 m with wheels alone.",
+    ],
+    noteTitle: "What broke",
+    broke:
+      "Thin objects read too high, because only the pixels above the threshold were measured, and those are the top of the noise. Measuring over the whole outline took the mean error from 4.1 mm to 1.7 mm. The gripper sits in the bottom of every depth frame and caused false holes until I masked it. SLAM and Nav2 are still blocked because the lab's lidar scan includes the floor; I found the cause and the fix is ready to test.",
+    tags: ["ROS 2", "RealSense D435", "RANSAC", "Xsens IMU", "robot_localization", "EKF", "Python"],
+    videos: [
+      { src: "media/terrain_indoor.mp4", poster: "media/terrain_indoor.jpg", caption: "Depth hazard detection on the robot: measured height vs tape height" },
+      { src: "media/terrain_outdoor.mp4", poster: "media/terrain_outdoor.jpg", caption: "One outdoor run: robot camera and the height map" },
+    ],
+    images: [
+      { src: "media/terrain_surfaces.jpg", caption: "Five surfaces: camera unevenness and IMU fast/slow shaking" },
+      { src: "media/terrain_run.jpg", caption: "One 28 m run: both numbers change when the surface changes" },
+    ],
+    links: [],
+    status: [],
+  },
+  {
     id: "nav",
     label: "Navigation",
     title: "Autonomous navigation stack",
@@ -122,29 +150,6 @@ export const PROJECTS = [
       { label: "Google Scholar", url: "https://scholar.google.com/citations?user=NlUBRtUAAAAJ" },
     ],
     status: ["Detector A: misses a lesion", "Detector B: raises a false alarm"],
-  },
-  {
-    id: "ptm",
-    label: "Portion monitor",
-    title: "Portion transfer monitor",
-    when: "Personal project · October 2026",
-    summary:
-      "Detecting failed food deposits from a load-cell signal: under, over, stuck on the tool, or missed the tray, and working out how long to wait before judging.",
-    did: [
-      "Simulated load-cell traces (impact, pan dynamics, noise, drift, vibration) and compared a simple rule with a gradient boosting model at different decision times.",
-      "From weight alone, food stuck on the tool looks like an under-portion until it falls. Topping up too early then overfills the tray.",
-      "Wrote ESP32 + HX711 logging code to repeat it with real food.",
-    ],
-    noteTitle: "What I fixed",
-    broke:
-      "The first simulator gave stuck and under portions different weight ranges, so the model could cheat. Real food would not give that hint, so I made the ranges the same.",
-    tags: ["Python", "scikit-learn", "Signal processing", "ESP32", "HX711"],
-    videos: [],
-    images: [
-      { src: "https://raw.githubusercontent.com/Praveen-Kumar-Murali/portion-transfer-monitor/main/results/2_decision_time_curve.png", caption: "F1 vs decision time (simulated data)" },
-    ],
-    links: [{ label: "Code and results", url: GH + "/portion-transfer-monitor" }],
-    status: ["Depositing", "Weighing", "Verdict"],
   },
   {
     id: "agv",
