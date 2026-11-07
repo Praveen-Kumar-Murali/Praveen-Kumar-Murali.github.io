@@ -193,7 +193,7 @@ export const EDUCATION = [
 export const OTHER_WORK = [
   ["Indoor and outdoor robot", "Ackermann robot with LiDAR, IMU and encoder fusion, SLAM indoors and RTK-GPS outdoors."],
   ["Wildlife monitoring with edge AI", "YOLOv8 on the device, running day and night for an NGO."],
-  ["5-axis SCARA robot", "Mostly 3D-printed, with my own kinematics and firmware."],
+  ["5-axis SCARA robot", "Mostly 3D-printed. I assembled it and wrote the code that drives it."],
 ];
 
 export const REPOS = [
