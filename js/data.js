@@ -15,11 +15,12 @@ export const PROJECTS = [
       "Camera predicts, IMU confirms: the camera sees a hazard about 4 s before the robot reaches it, and the IMU shows the front and then the rear wheel jolt at the predicted times.",
       "Raised the IMU from 10 to 100 Hz. Plain RMS shaking just followed the speed, but the ratio of fast to slow shaking separates surfaces: about 2 on asphalt, about 0.3 on grass.",
       "Localization: GNSS was 7 to 10 m off. Wheel speed plus IMU heading in an EKF (robot_localization) closed a 26 m loop to 0.7 m, against 4.7 m with wheels alone.",
+      "Brought up SLAM Toolbox and Nav2 on the robot: the indoor map closes its loop to 1 cm (wheels alone: 1.8 m off), and a LiDAR speed governor I wrote stops the robot 0.4 m before walls.",
     ],
     noteTitle: "What broke",
     broke:
-      "Thin objects read too high, because only the pixels above the threshold were measured, and those are the top of the noise. Measuring over the whole outline took the mean error from 4.1 mm to 1.7 mm. The gripper sits in the bottom of every depth frame and caused false holes until I masked it. SLAM and Nav2 are still blocked because the lab's lidar scan includes the floor; I found the cause and the fix is ready to test.",
-    tags: ["ROS 2", "RealSense D435", "RANSAC", "Xsens IMU", "robot_localization", "EKF", "Python"],
+      "Thin objects read too high, because only the pixels above the threshold were measured, and those are the top of the noise. Measuring over the whole outline took the mean error from 4.1 mm to 1.7 mm. The gripper sits in the bottom of every depth frame and caused false holes until I masked it. SLAM and Nav2 were blocked for weeks because the lab's lidar scan included the floor; once I filtered it out, the indoor map closed its loop to 1 cm.",
+    tags: ["ROS 2", "Nav2", "SLAM Toolbox", "RealSense D435", "RANSAC", "Xsens IMU", "robot_localization", "EKF", "Python"],
     videos: [
       { src: "media/terrain_indoor.mp4", poster: "media/terrain_indoor.jpg", caption: "Depth hazard detection on the robot: measured height vs tape height" },
       { src: "media/terrain_outdoor.mp4", poster: "media/terrain_outdoor.jpg", caption: "One outdoor run: robot camera and the height map" },
