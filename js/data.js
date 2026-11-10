@@ -13,7 +13,7 @@ export const PROJECTS = [
     did: [
       "Depth hazard node on the robot: RANSAC fits the ground plane, every point gets a signed height, and holes and bumps are measured in millimetres. On 5 tape-measured objects over 24 passes, the mean height error is 1.7 mm (worst 4.3 mm).",
       "Camera predicts, IMU confirms: the camera sees a hazard about 4 s before the robot reaches it, and the IMU shows the front and then the rear wheel jolt at the predicted times.",
-      "Raised the IMU from 10 to 100 Hz. Plain RMS shaking just followed the speed, but the ratio of fast to slow shaking separates surfaces: about 2 on asphalt, about 0.3 on grass.",
+      "Raised the IMU from 10 to 100 Hz. Plain RMS shaking just followed the speed, but the ratio of fast to slow shaking separates surfaces: about 2.2 on asphalt, about 0.3 on grass.",
       "Localization: GNSS was 7 to 10 m off. Wheel speed plus IMU heading in an EKF (robot_localization) closed a 26 m loop to 0.7 m, against 4.7 m with wheels alone.",
       "Brought up SLAM Toolbox and Nav2 on the robot: the indoor map closes its loop to 1 cm (wheels alone: 1.8 m off), and a LiDAR speed governor I wrote stops the robot 0.4 m before walls.",
     ],
