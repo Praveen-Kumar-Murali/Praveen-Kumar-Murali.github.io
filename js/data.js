@@ -29,7 +29,7 @@ export const PROJECTS = [
       { src: "media/terrain_surfaces.jpg", caption: "Five surfaces: camera unevenness and IMU fast/slow shaking" },
       { src: "media/terrain_run.jpg", caption: "One 28 m run: both numbers change when the surface changes" },
     ],
-    links: [],
+    links: [{ label: "Team repo (README with results)", url: "https://github.com/IFRoS-ELTE/silvanus-terrain-quality-mapping" }],
     status: [],
   },
   {
