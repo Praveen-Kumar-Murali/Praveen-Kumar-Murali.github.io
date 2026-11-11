@@ -138,6 +138,8 @@ button { font: inherit; }
 .media { margin: 0 0 14px; }
 .media video, .media img { width: 100%; border-radius: 10px; background: #000; display: block; }
 .media video.vertical { max-height: 420px; object-fit: contain; }
+.media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: #000; display: block; }
+.media iframe.vertical { aspect-ratio: 9 / 16; width: auto; height: 420px; max-width: 100%; margin: 0 auto; }
 .media figcaption { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
 

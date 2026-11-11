@@ -108,22 +108,25 @@ export const PROJECTS = [
     title: "Industrial robot cells",
     when: "MSc labs and industry work",
     summary:
-      "Pick-and-place, sorting, assembly and force-controlled tasks on industrial arms: Stäubli TX60 and TS60 (VAL3) and Universal Robots UR10e (URScript).",
+      "Pick-and-place, sorting, assembly and force-controlled tasks on industrial arms: Stäubli TX60 and TS60 (VAL3) and Universal Robots UR3e (URScript).",
     did: [
       "Stäubli TX60: joint-space manipulation and a multi-part assembly sequence with I/O handling.",
       "Stäubli TS60 SCARA: a sorting and palletizing station.",
-      "UR10e: depalletizing with force/torque feedback, and surface polishing with constant tool pressure.",
+      "UR3e: depalletizing with force-based contact detection, and car-surface polishing in force mode at a constant 10 N.",
     ],
     noteTitle: "Why force feedback",
     broke:
       "With force/torque feedback the robot can search for a box edge instead of trusting a fixed position, which matters when the boxes are never exactly where the program expects.",
-    tags: ["VAL3", "URScript", "Stäubli", "UR10e", "Force control"],
+    tags: ["VAL3", "URScript", "Stäubli", "UR3e", "Force control"],
     videos: [
-      { src: "media/industrial_arm.mp4", poster: "media/industrial_arm.jpg", caption: "Jogging an industrial arm with the teach pendant (Robot Manipulation lab)", vertical: true },
+      { youtube: "1sj0m-wEcds", poster: "https://i.ytimg.com/vi/1sj0m-wEcds/hqdefault.jpg", caption: "UR3e car-surface polishing in force mode (Robot Manipulation lab, team video)", vertical: true },
+      { youtube: "hXechAfqBsM", poster: "https://i.ytimg.com/vi/hXechAfqBsM/hqdefault.jpg", caption: "UR3e depalletizing with a vacuum gripper and tool contact detection (team video)", vertical: true },
+      { youtube: "UtPO76vpmHE", poster: "https://i.ytimg.com/vi/UtPO76vpmHE/hqdefault.jpg", caption: "Stäubli TX60 pick and place, Lab 2 level 2 (team video)" },
+      { youtube: "IZvApLtPLEk", poster: "https://i.ytimg.com/vi/IZvApLtPLEk/hqdefault.jpg", caption: "Stäubli TS60 SCARA pick and place, Lab 2 level 3 (team video)", vertical: true },
     ],
     links: [
-      { label: "UR10e depalletizing", url: GH + "/ur10e-depalletizing-cell" },
-      { label: "UR10e polishing", url: GH + "/ur10e-surface-polishing" },
+      { label: "UR3e depalletizing", url: GH + "/ur10e-depalletizing-cell" },
+      { label: "UR3e polishing", url: GH + "/ur10e-surface-polishing" },
       { label: "TX60 assembly", url: GH + "/staubli-tx60-assembly-cell" },
       { label: "TS60 sorting", url: GH + "/staubli-ts60-sorting-station" },
     ],
@@ -217,7 +220,7 @@ export const SKILLS = [
   ["Estimation", "Kalman and extended Kalman filters, factor graphs, particle filters, chi-square gating"],
   ["Planning and control", "RRT*, A*, DWA, task-priority control, PID"],
   ["Perception and ML", "PyTorch, YOLO, RT-DETR, OpenCV, camera calibration, multi-view geometry, PyTorch Geometric"],
-  ["Industrial robots", "UR10e (URScript), Stäubli TX60 and TS60 (VAL3), KUKA, FANUC"],
+  ["Industrial robots", "UR3e (URScript), Stäubli TX60 and TS60 (VAL3), KUKA, FANUC"],
   ["Programming", "Python, C++, Linux, Git"],
   ["Languages", "English (fluent), Tamil (native), Kannada (fluent), Hindi (intermediate), Spanish (basic)"],
 ];

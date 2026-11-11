@@ -53,7 +53,9 @@ function markDock() {
 // ---------- panel ----------
 function panelHTML(p, i) {
   const vids = (p.videos || [])
-    .map((v) => `<figure class="media"><video controls playsinline preload="none" poster="${esc(v.poster)}" class="${v.vertical ? "vertical" : ""}"><source src="${esc(v.src)}" type="video/mp4"></video><figcaption>${esc(v.caption)}</figcaption></figure>`)
+    .map((v) => v.youtube
+      ? `<figure class="media"><iframe class="${v.vertical ? "vertical" : ""}" src="https://www.youtube-nocookie.com/embed/${esc(v.youtube)}" title="${esc(v.caption)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><figcaption>${esc(v.caption)}</figcaption></figure>`
+      : `<figure class="media"><video controls playsinline preload="none" poster="${esc(v.poster)}" class="${v.vertical ? "vertical" : ""}"><source src="${esc(v.src)}" type="video/mp4"></video><figcaption>${esc(v.caption)}</figcaption></figure>`)
     .join("");
   const imgs = (p.images || [])
     .map((m) => `<figure class="media"><img loading="lazy" src="${esc(m.src)}" alt="${esc(m.caption)}"><figcaption>${esc(m.caption)}</figcaption></figure>`)
